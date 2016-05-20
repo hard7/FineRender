@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 2.8)
-project(core)
+project(FineRender)
 
 set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_SOURCE_DIR}/CMakeModules")
 set(CMAKE_CXX_FLAGS ${CMAKE_CXX_FLAGS} -O3)
@@ -22,8 +22,6 @@ if(FFMPEG_FOUND)
     include_directories(${FFMPEG_INCLUDE_DIR})
     set(LINK_LIBRARIES ${LINK_LIBRARIES} ${FFMPEG_LIBRARIES})
 endif()
-
-
 
 add_definitions(-std=c++11)
 set(LIBCORE_NAME wunderwaffle)
