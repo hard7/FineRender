@@ -24,8 +24,6 @@ if(FFMPEG_FOUND)
 endif()
 
 add_definitions(-std=c++11)
-set(LIBCORE_NAME wunderwaffle)
-add_library(${LIBCORE_NAME} SHARED ${SOURCES} ${MOC_META})
-target_link_libraries(${LIBCORE_NAME} ${LINK_LIBRARIES})
-
-
+set(finerender wunderwaffle)
+add_library(finerender SHARED ${SOURCES} ${MOC_META})
+target_link_libraries(finerender ${LINK_LIBRARIES}) 
