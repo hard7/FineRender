@@ -76,16 +76,15 @@ namespace core {
 
             if(path.size() >= 1024) throw std::logic_error("Path to file can not to contain more than 1024 symbols");
             strcpy(formatContext->filename, path.c_str());
-            AVCodec *codec = avcodec_find_encoder(formatContext->oformat->video_codec);
-            if(not codec) std::logic_error("Could not allocate stream");
+
             if(avio_open(&formatContext->pb, path.c_str(), AVIO_FLAG_WRITE) < 0) {
                 std::logic_error("Could not open file'" + path + "' for writing video");
             }
 
-            stream.reset(avformat_new_stream(formatContext.get(), codec));
+            stream.reset(avformat_new_stream(formatContext.get(), nullptr));
             if(not stream) std::logic_error("Could not allocate stream");
             stream->id = 0;
-            //stream->time_base = (AVRational){1, (int)fps};
+            stream->time_base = (AVRational){1, (int)fps};
 
             AVCodecContext *codecCtx = stream->codec;
             codecCtx->codec_id = formatContext->oformat->video_codec;       // AV_CODEC_ID_MPEG4;
@@ -93,22 +92,22 @@ namespace core {
             codecCtx->bit_rate = (int)(width * height * fps);
             codecCtx->width = width;
             codecCtx->height = height;
-            
+            codecCtx->time_base = (AVRational){1, (int)fps};
             codecCtx->gop_size = 1;
             codecCtx->pix_fmt = AV_PIX_FMT_YUV420P;
 
-            /*codecCtx->qmin = 1;     // magic
-            codecCtx->qmax = 31;*/
+            codecCtx->qmin = 1;     // magic
+            codecCtx->qmax = 31;
 
             if(formatContext->oformat->flags & AVFMT_GLOBALHEADER) codecCtx->flags |= CODEC_FLAG_GLOBAL_HEADER;
             av_dump_format(formatContext.get(), 0, path.c_str(), 1);
 
-            
+            AVCodec *codec = avcodec_find_encoder(codecCtx->codec_id);
+            if(not codec) std::logic_error("Could not allocate stream");
             if(avcodec_open2(codecCtx, codec, nullptr) < 0) std::logic_error("Could not open codec");
             if(avformat_write_header(formatContext.get(), nullptr) < 0) std::logic_error("Couldn't write header into the stream");
-            codecCtx->time_base = (AVRational){1, (int)fps};
-            
-            frame.reset(av_frame_alloc());
+
+            frame.reset(avcodec_alloc_frame());
             if(not frame) std::logic_error("Couldn't create frame");
             picBuffer.reset(new uint8_t[avpicture_get_size(codecCtx->pix_fmt, width, height)]);
             avpicture_fill(reinterpret_cast<AVPicture*>(frame.get()), picBuffer.get(), codecCtx->pix_fmt, width, height);
@@ -143,8 +142,7 @@ namespace core {
             sws_scale(getContext(format), slices, &stride, 0, height, frame->data, frame->linesize);
             AVPacket* packet = this->packet.get();
             
-            ++step;
-//            frame->pts = ++step;          // * 2000; // * c->bit_rate / (c->time_base.den *c->time_base.den) ;
+            frame->pts = ++step;          // * 2000; // * c->bit_rate / (c->time_base.den *c->time_base.den) ;
             int got_packet = 0;
 
             //https://ffmpeg.org/pipermail/libav-user/2013-June/004884.html
@@ -161,7 +159,7 @@ namespace core {
             }
             else {
                 packet->pts = av_rescale_q(step, stream->codec->time_base, stream->time_base);
-                packet->flags |= AV_PKT_FLAG_KEY;
+                if(stream->codec->coded_frame->key_frame) packet->flags |= AV_PKT_FLAG_KEY;
                 packet->stream_index = stream->index;
                 packet->dts = packet->pts;
             }
